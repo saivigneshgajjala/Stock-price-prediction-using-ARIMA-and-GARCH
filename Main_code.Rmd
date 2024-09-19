@@ -1,0 +1,328 @@
+```{r}
+library(quantmod)
+library(forecast)
+library(xlsx)
+library(tseries)
+library(timeSeries)
+library(dplyr)
+library(fGarch)
+library(xts)
+library(readr)
+library(moments)
+library(rugarch)
+library(prophet)
+library(tsfknn)
+```
+
+```{r}
+getSymbols('GOOG', from= '2005-01-01')
+head(GOOG)
+tail(GOOG)
+```
+
+```{r}
+# Separating Closing Prices of stocks from data
+GOOG_CP = GOOG[,4]
+```
+
+```{r}
+# Plotting graph of Google Stock Prices to observe the trend
+plot(GOOG_CP)
+```
+
+```{r}
+# Plotting the ACF and PACF plot of data
+par(mfrow=c(1,2))
+Acf(GOOG_CP, main = 'ACF Plot')
+Pacf(GOOG_CP, main = 'PACF Plot')
+
+```
+
+```{r}
+# Plotting Additive and Multiplicative Decomposition
+GOOG.ts <- ts(GOOG_CP, start=c(2010,1,1), frequency = 365.25)
+GOOG.add  <- decompose(GOOG.ts,type = "additive")
+plot(GOOG.add)
+GOOG.mult <- decompose(GOOG.ts,type = "multiplicative")
+plot(GOOG.mult)
+```
+
+```{r}
+# ADF test on Closing Prices 
+print(adf.test(GOOG_CP))
+```
+
+```{r}
+# Splitting into test and train data 
+N = length(GOOG_CP)
+n = 0.7*N
+train = GOOG_CP[1:n, ]
+test  = GOOG_CP[(n+1):N,  ]
+predlen=length(test)
+```
+
+```{r}
+# Taking log of dataset 
+logs=diff(log(GOOG_CP), lag =1)
+logs = logs[!is.na(logs)]
+```
+
+```{r}
+# Log returns plot
+plot(logs, type='l', main= 'Log Returns Plot')
+```
+
+```{r}
+# ADF test on log of Closing Prices
+print(adf.test(logs))
+```
+
+```{r}
+# ACF and PACF of log data 
+Acf(logs, main = 'ACF of log data')
+Pacf(logs, main = 'PACF of log data')
+```
+
+```{r}
+# Fitting the ARIMA model
+# Auto ARIMA with seasonal = FALSE
+
+fit1<-auto.arima(GOOG_CP, seasonal=FALSE)
+tsdisplay(residuals(fit1), lag.max = 40, main='(1,1,1) Model Residuals')
+fcast1<-forecast(fit1, h=30)
+plot(fcast1)
+accuracy(fcast1)
+
+# Fit ARIMA model to the log-transformed data
+fita <- auto.arima(log(GOOG_CP), seasonal = FALSE)
+
+# Display residuals
+tsdisplay(residuals(fita), lag.max = 40, main = '(1,1,1) Model Residuals')
+
+# Forecast
+fcasta <- forecast(fita, h = 30)
+
+# Plot forecast
+plot(fcasta)
+
+# Accuracy assessment
+accuracy(fcasta)
+
+```
+
+```{r}
+# Fitting the ARIMA model
+# Auto ARIMA with seasonal = FALSE
+
+fit1<-auto.arima(GOOG_CP, seasonal=FALSE)
+tsdisplay(residuals(fit1), lag.max = 40, main='(1,1,1) Model Residuals')
+fcast1<-forecast(fit1, h=30)
+plot(fcast1)
+accuracy(fcast1)
+
+# Fit ARIMA model to the log-transformed data
+fita <- auto.arima(log(GOOG_CP), seasonal = FALSE)
+
+# Display residuals
+tsdisplay(residuals(fita), lag.max = 40, main = '(1,1,1) Model Residuals')
+
+# Forecast
+fcasta <- forecast(fita, h = 30)
+
+# Plot forecast
+plot(fcasta)
+
+# Accuracy assessment
+accuracy(fcasta)
+```
+
+```{}
+```
+
+```{r}
+# Auto ARIMA with lambda = "auto"
+fit2<-auto.arima(GOOG_CP, lambda = "auto")
+summary(fit2)
+`
+tsdisplay(residuals(fit2), lag.max = 40, main='(2,1,) Model Residuals')
+fcast2<-forecast(fit2, h=30)
+plot(fcast2)
+accuracy(fcast2)
+```
+
+```{r}
+fit2<-auto.arima(GOOG_CP, lambda = "auto")
+summary(fit2)
+```
+
+```{r}
+# ARIMA model with optimized p,d and q
+fit3<-arima(GOOG_CP, order=c(8,3,8))
+tsdisplay(residuals(fit3), lag.max = 40, main='(8,2,8) Model Residuals')
+fcast3<-forecast(fit3, h=30)
+plot(fcast3)
+accuracy(fcast3)
+summary(fit3)
+```
+
+```{r}
+# Histogram and Emperical Distribution
+m=mean(logs);
+s=sd(logs);
+hist(logs, nclass=40, freq=FALSE, main='Closing Price Histogram');
+curve(dnorm(x, mean=m,sd=s), from = -0.3, to = 0.2, add=TRUE, col="red")
+plot(density(logs), main='Closing Price Empirical Distribution');
+curve(dnorm(x, mean=m,sd=s), from = -0.3, to = 0.2, add=TRUE, col="red")
+
+```
+
+```{r}
+# Kurtosis
+kurtosis(logs)
+```
+
+```{r}
+# Dataset forecast upper first 5 values
+fitarfima = autoarfima(data = train, ar.max = 2, ma.max = 2, 
+                       criterion = "AIC", method = "full")
+fitarfima
+
+```
+
+```{r}
+# Defining the model
+garch11closeprice=ugarchspec(variance.model=list(garchOrder=c(1,1)), mean.model=list(armaOrder=c(2,2)))
+```
+
+```{r}
+# Estimate model 
+garch11closepricefit=ugarchfit(spec=garch11closeprice, data=train)
+plot.ts(sigma(garch11closepricefit), ylab="sigma(t)", col="blue")
+summary(garch11closepricefit)
+
+```
+
+```{r}
+# Model akike
+infocriteria(garch11closepricefit)
+
+# Normal residuals
+garchres <- data.frame(residuals(garch11closepricefit))  
+plot(garchres$residuals.garch11closepricefit.)
+
+# Standardized residuals
+garchres <- data.frame(residuals(garch11closepricefit, standardize=TRUE))
+
+```
+
+```{r}
+#Normal Q plot
+qqnorm(garchres$residuals.garch11closepricefit..standardize...TRUE.)
+qqline(garchres$residuals.garch11closepricefit..standardize...TRUE.)
+
+#Squared standardized residuals Ljung Box
+garchres <- data.frame(residuals(garch11closepricefit, standardize=TRUE)^2) 
+Box.test(garchres$residuals.garch11closepricefit..standardize...TRUE..2, type="Ljung-Box")
+
+```
+
+```{r}
+
+# GARCH
+garch11closepricefit_logs=ugarchfit(spec=garch11closeprice, data=logs)
+ni.garch11 <- newsimpact(garch11closepricefit_logs)
+plot(ni.garch11$zx, ni.garch11$zy, type="l", lwd=2, col="blue", main="GARCH(1,1) - NewsImpact", ylab=ni.garch11$yexpr, xlab=ni.garch11$xexpr
+)
+
+# EGARCH
+egarch11.spec = ugarchspec(variance.model = list(model="eGARCH", garchOrder=c(1,1)),
+                           mean.model = list(armaOrder=c(0,0)))
+egarch11closepricefit=ugarchfit(spec=egarch11.spec, data=logs)
+ ni.egarch11 <- newsimpact(egarch11closepricefit)
+ plot(ni.egarch11$zx, ni.egarch11$zy, type="l", lwd=2, col="blue",main="EGARCH(1,1) - News Impact",
+      ylab=ni.egarch11$yexpr, xlab=ni.egarch11$xexpr)
+ 
+# TGARCH  
+tgarch11.spec = ugarchspec(variance.model = list(model="fGARCH",submodel="TGARCH", garchOrder=c(1,1)), mean.model = list(armaOrder=c(0,0)))
+GOOG.tgarch11.fit = ugarchfit(spec=tgarch11.spec, data=logs)
+ni.tgarch11 <- newsimpact(GOOG.tgarch11.fit)
+plot(ni.tgarch11$zx, ni.tgarch11$zy, type="l", lwd=2, col="blue",main="TGARCH(1,1) - News Impact",ylab=ni.tgarch11$yexpr, xlab=ni.tgarch11$xexpr)
+```
+
+```{}
+```
+
+```{r}
+# EGARCH
+egarch11.spec = ugarchspec(variance.model = list(model="eGARCH", garchOrder=c(1,1)),
+                           mean.model = list(armaOrder=c(0,0)))
+egarch11closepricefit=ugarchfit(spec=egarch11.spec, data=logs)
+ ni.egarch11 <- newsimpact(egarch11closepricefit)
+ plot(ni.egarch11$zx, ni.egarch11$zy, type="l", lwd=2, col="blue",main="EGARCH(1,1) - News Impact",
+      ylab=ni.egarch11$yexpr, xlab=ni.egarch11$xexpr)
+
+```
+
+```{r}
+# TGARCH  
+tgarch11.spec = ugarchspec(variance.model = list(model="fGARCH",submodel="TGARCH", garchOrder=c(1,1)), mean.model = list(armaOrder=c(0,0)))
+GOOG.tgarch11.fit = ugarchfit(spec=tgarch11.spec, data=logs)
+ni.tgarch11 <- newsimpact(amz.tgarch11.fit)
+plot(ni.tgarch11$zx, ni.tgarch11$zy, type="l", lwd=2, col="blue",main="TGARCH(1,1) - News Impact",ylab=ni.tgarch11$yexpr, xlab=ni.tgarch11$xexpr)
+
+```
+
+```{r}
+# GARCH Forecasting
+#garchclosepricefit=ugarchfit(spec=garch11closeprice, data=train)
+#garchforecast <- ugarchforecast(garch11closepricefit, n.ahead = 30) 
+#plot(garchforecast) 
+#accuracy(garchforecast,garchclosepricefit)
+# Load necessary library
+library(rugarch)
+
+# Assuming you have your training data stored in 'train'
+# Assuming 'garch11closeprice' is a valid GARCH specification object
+
+# Fit GARCH model
+garchclosepricefit <- ugarchfit(spec = garch11closeprice, data = train)
+
+# Forecast using the fitted GARCH model
+garchforecast <- ugarchforecast(garchclosepricefit, n.ahead = 30)
+
+# Plot the forecast
+plot(garchforecast)
+
+# Calculate accuracy
+accuracy(garchforecast, data = train)
+```
+
+```{r}
+library(readr)
+library(tidyverse)
+library(ggplot2)
+library(scales)
+library(forecast)
+setwd("C:/Users/Sai vignesh/Downloads")
+GOOG <- read_csv("GOOG.csv")
+
+glimpse(GOOG)
+head(GOOG)
+tail(GOOG)
+ 
+```
+
+```{r}
+# Let the package automatically select the model base on AIC and BIC
+auto.GOOG.aic = ets(GOOG$Close,model="ZZZ",ic="aic") 
+auto.GOOG.aic$method
+
+auto.GOOG.bic = ets(GOOG$Close,model="ZZZ",ic="bic") 
+auto.GOOG.bic$method
+
+auto.GOOG.aic.damped = ets(GOOG$Close,model="ZZZ",damped = TRUE, ic="aic") #
+auto.GOOG.aic.damped$method
+
+auto.GOOG.bic.damped = ets(GOOG$Close,model="ZZZ",damped = TRUE, ic="bic") #
+auto.GOOG.bic.damped$method
+```
